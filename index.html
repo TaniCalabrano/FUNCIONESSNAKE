@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Serpientes Función PRO</title>
+
+<style>
+body{
+  background:#080816;
+  color:#e0e0ff;
+  font-family:Courier New;
+  text-align:center;
+}
+canvas{
+  border:1px solid #2a2a44;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🐍 Serpientes Función (Versión estable)</h2>
+<button onclick="startGame()">Iniciar</button>
+<canvas id="c"></canvas>
+
+<script>
+// ───────── CONFIG ─────────
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+const CELL=16, COLS=40, ROWS=30;
+canvas.width=COLS*CELL;
+canvas.height=ROWS*CELL;
+
+// ───────── FIX COLOR ─────────
+function hexToRGBA(hex, alpha){
+  const r=parseInt(hex.slice(1,3),16);
+  const g=parseInt(hex.slice(3,5),16);
+  const b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ───────── FUNCIONES SEGURAS ─────────
+function evalFuncRaw(type,x){
+  let v;
+  switch(type){
+    case "linear": v=2*x; break;
+    case "quad": v=x*x/5; break;
+    case "sin": v=5*Math.sin(x/3); break;
+    case "exp": v=Math.pow(2,x/5); break;
+    default: v=0;
+  }
+  if(isNaN(v)||!isFinite(v)) return null;
+  return v;
+}
+
+// ───────── PLAYER ─────────
+let player, enemies=[], bullets=[];
+let dir={x:1,y:0};
+let timer=0;
+
+function init(){
+  player=[{x:10,y:15},{x:9,y:15},{x:8,y:15}];
+
+  enemies=[
+    createEnemy("linear","#44aaff"),
+    createEnemy("sin","#ffee44"),
+    createEnemy("quad","#ff8844")
+  ];
+}
+
+function createEnemy(type,color){
+  let path=[];
+  for(let x=0;x<COLS;x++){
+    let y=ROWS/2 - evalFuncRaw(type,x-20);
+    if(y!==null) path.push({x,y:Math.round(y)});
+  }
+  return {
+    type,color,
+    path,
+    idx:0,
+    body:path.slice(0,10)
+  };
+}
+
+// ───────── UPDATE ─────────
+function update(dt){
+  timer+=dt;
+  if(timer<120) return;
+  timer=0;
+
+  // player
+  const h=player[0];
+  const nx=(h.x+dir.x+COLS)%COLS;
+  const ny=(h.y+dir.y+ROWS)%ROWS;
+  player.unshift({x:nx,y:ny});
+  player.pop();
+
+  // enemies
+  enemies.forEach(e=>{
+    e.idx=(e.idx+1)%e.path.length;
+    e.body.unshift(e.path[e.idx]);
+    e.body.pop();
+  });
+}
+
+// ───────── DRAW ─────────
+function draw(){
+  ctx.fillStyle="#060612";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // grid
+  ctx.strokeStyle="#141428";
+  for(let x=0;x<COLS;x++){
+    ctx.beginPath();
+    ctx.moveTo(x*CELL,0);
+    ctx.lineTo(x*CELL,canvas.height);
+    ctx.stroke();
+  }
+
+  // enemies
+  enemies.forEach(e=>{
+    e.body.forEach((s,i)=>{
+      ctx.fillStyle=hexToRGBA(e.color,1-i*0.08);
+      ctx.fillRect(s.x*CELL,s.y*CELL,CELL-1,CELL-1);
+    });
+  });
+
+  // player
+  player.forEach((s,i)=>{
+    ctx.fillStyle=hexToRGBA("#44ff88",1-i*0.1);
+    ctx.fillRect(s.x*CELL,s.y*CELL,CELL-1,CELL-1);
+  });
+}
+
+// ───────── INPUT ─────────
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowUp") dir={x:0,y:-1};
+  if(e.key==="ArrowDown") dir={x:0,y:1};
+  if(e.key==="ArrowLeft") dir={x:-1,y:0};
+  if(e.key==="ArrowRight") dir={x:1,y:0};
+});
+
+// ───────── LOOP ─────────
+let last=0;
+function loop(t){
+  const dt=t-last;
+  last=t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function startGame(){
+  init();
+  requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>
